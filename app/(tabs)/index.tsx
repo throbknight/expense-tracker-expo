@@ -1,75 +1,136 @@
-import { Image } from 'expo-image';
-import { Platform, StyleSheet } from 'react-native';
 
-import { HelloWave } from '@/components/HelloWave';
-import ParallaxScrollView from '@/components/ParallaxScrollView';
-import { ThemedText } from '@/components/ThemedText';
-import { ThemedView } from '@/components/ThemedView';
 
-export default function HomeScreen() {
+import React, { useState } from 'react';
+import { View, Text, TextInput, Button, StyleSheet } from 'react-native';
+import axios from 'axios';
+import * as ImagePicker from 'expo-image-picker';
+import { Image, Alert } from 'react-native';
+
+
+const API_URL = 'https://1og1ca5xd6.execute-api.ap-south-1.amazonaws.com/add-expense';
+const UPLOAD_API_URL = 'https://1og1ca5xd6.execute-api.ap-south-1.amazonaws.com/upload-receipt';
+
+export default function TabHome() {
+  const [imageBase64, setImageBase64] = useState<string | null>(null);
+  const [imageUri, setImageUri] = useState<string | null>(null);
+  const [expenseName, setExpenseName] = useState('');
+  const [amount, setAmount] = useState('');
+  const [message, setMessage] = useState('');
+  const pickImage = async () => {
+  const result = await ImagePicker.launchImageLibraryAsync({
+    mediaTypes: ImagePicker.MediaTypeOptions.Images,
+    allowsEditing: false,
+    quality: 1,
+    base64: true,
+  });
+
+  if (!result.canceled && result.assets.length > 0) {
+    setImageUri(result.assets[0].uri);
+    setImageBase64(result.assets[0].base64 ?? null);
+  }
+};
+
+const takePhoto = async () => {
+  const permission = await ImagePicker.requestCameraPermissionsAsync();
+  if (permission.status !== 'granted') {
+    Alert.alert('Permission required', 'Camera permission is needed.');
+    return;
+  }
+
+  const result = await ImagePicker.launchCameraAsync({
+    allowsEditing: false,
+    quality: 1,
+    base64: true,
+  });
+
+  if (!result.canceled && result.assets.length > 0) {
+    setImageUri(result.assets[0].uri);
+    setImageBase64(result.assets[0].base64 ?? '');
+  }
+};
+
+
+
+const uploadImage = async () => {
+  if (!imageBase64) {
+    setMessage('No image to upload.');
+    return;
+  }
+  setMessage('Uploading...');
+
+  try {
+    const response = await axios.post(UPLOAD_API_URL, {
+      image: imageBase64,
+      userId: 'test-user', // or your actual user logic
+    });
+    setMessage(response.data.message || 'Upload complete!');
+    // You can show response.data.lines here (extracted text from Textract)
+    console.log(response.data);  // See the lines in debug
+  } catch (error) {
+    const err = error as any;
+    setMessage('Upload failed: ' + (err.response?.data?.message || err.message));
+  }
+};
+
+  const handleAdd = async () => {
+    try {
+      const response = await axios.post(API_URL, {
+        userId: 'test-user', // you can update with your user logic later
+        expenseName,
+        amount: Number(amount)
+      });
+
+      if (response.status === 200) {
+        setMessage(`Expense added! ${expenseName}, ${amount}`);
+        setExpenseName('');
+        setAmount('');
+      } else {
+        setMessage('Failed to add expense. Try again.');
+      }
+    } catch (error) {
+      const err = error as any;
+      setMessage('Error: ' + (err.response?.data?.message || err.message));
+    }
+  };
+
   return (
-    <ParallaxScrollView
-      headerBackgroundColor={{ light: '#A1CEDC', dark: '#1D3D47' }}
-      headerImage={
-        <Image
-          source={require('@/assets/images/partial-react-logo.png')}
-          style={styles.reactLogo}
-        />
-      }>
-      <ThemedView style={styles.titleContainer}>
-        <ThemedText type="title">Welcome!</ThemedText>
-        <HelloWave />
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 1: Try it</ThemedText>
-        <ThemedText>
-          Edit <ThemedText type="defaultSemiBold">app/(tabs)/index.tsx</ThemedText> to see changes.
-          Press{' '}
-          <ThemedText type="defaultSemiBold">
-            {Platform.select({
-              ios: 'cmd + d',
-              android: 'cmd + m',
-              web: 'F12',
-            })}
-          </ThemedText>{' '}
-          to open developer tools.
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 2: Explore</ThemedText>
-        <ThemedText>
-          {`Tap the Explore tab to learn more about what's included in this starter app.`}
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 3: Get a fresh start</ThemedText>
-        <ThemedText>
-          {`When you're ready, run `}
-          <ThemedText type="defaultSemiBold">npm run reset-project</ThemedText> to get a fresh{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> directory. This will move the current{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> to{' '}
-          <ThemedText type="defaultSemiBold">app-example</ThemedText>.
-        </ThemedText>
-      </ThemedView>
-    </ParallaxScrollView>
+    <View style={styles.container}>
+      <Text style={styles.heading}>Expense Tracker</Text>
+
+      <TextInput
+        style={styles.input}
+        placeholder="Expense Name"
+        value={expenseName}
+        onChangeText={setExpenseName}
+      />
+
+      <TextInput
+        style={styles.input}
+        placeholder="Amount"
+        value={amount}
+        onChangeText={setAmount}
+        keyboardType="numeric"
+      />
+
+      <Button title="Add" onPress={handleAdd} />
+
+      {message ? <Text style={styles.message}>{message}</Text> : null}
+      <Button title="Pick from Gallery" onPress={pickImage} />
+      <Button title="Take a Photo" onPress={takePhoto} />
+
+      {imageUri && (
+      <Image source={{ uri: imageUri }} style={{ width: 200, height: 200, margin: 10 }} />
+)}
+      <Button title="Upload Receipt" onPress={uploadImage} />
+
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  titleContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  stepContainer: {
-    gap: 8,
-    marginBottom: 8,
-  },
-  reactLogo: {
-    height: 178,
-    width: 290,
-    bottom: 0,
-    left: 0,
-    position: 'absolute',
-  },
+  container: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 24 },
+  heading: { fontSize: 24, fontWeight: 'bold', marginBottom: 20 },
+  input: { borderWidth: 1, borderColor: '#ccc', padding: 10, width: '100%', marginBottom: 16, borderRadius: 5 },
+  message: { marginTop: 20, fontSize: 16, color: 'green' },
 });
+
