@@ -14,3 +14,24 @@ local.properties
 
 # Bundle artifacts
 *.jsbundle
+# Node / Expo
+node_modules/
+.expo/
+.expo-shared/
+dist/
+build/
+.expo-dev-client/
+.expo/web/cache/
+
+# Native (created by prebuild)
+ios/
+android/
+
+# OS/Editor
+.DS_Store
+.vscode/
+*.log
+
+# Env/Secrets
+.env
+.env.*
